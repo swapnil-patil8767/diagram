@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mermaid Diagram Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.1/mermaid.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .split-view {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            min-height: 400px;
+        }
+
+        .panel {
+            flex: 1;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #codePanel {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+
+        .input-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #0052a3;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #diagramOutput {
+            overflow: auto;
+            min-height: 300px;
+        }
+
+        .loading {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+
+        .loading::after {
+            content: "Loading...";
+            color: #666;
+        }
+
+        .error {
+            color: #dc3545;
+            margin-top: 10px;
+            display: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .copy-button {
+            padding: 5px 10px;
+            font-size: 14px;
+            background-color: #4CAF50;
+        }
+
+        .copy-button:hover {
+            background-color: #45a049;
+        }
+
+        .download-button {
+            padding: 5px 10px;
+            font-size: 14px;
+            background-color: #28a745;
+        }
+
+        .download-button:hover {
+            background-color: #218838;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Diagram Generator</h1>
+        </div>
+        
+        <div class="split-view">
+            <div class="panel">
+                <div class="panel-header">
+                    <span>Mermaid Code</span>
+                    <div class="button-group">
+                        <button onclick="copyCode()" class="copy-button">Copy Code</button>
+                        <button onclick="downloadDiagram('svg')" class="download-button">Download SVG</button>
+                        <button onclick="downloadDiagram('png')" class="download-button">Download PNG</button>
+                    </div>
+                </div>
+                <pre id="codePanel">flowchart TD
+    A[Start] --> B[Enter Description]
+    B --> C[Generate Diagram]
+    C --> D[View Result]</pre>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-header">Generated Diagram</div>
+                <div id="diagramOutput"></div>
+                <div class="loading"></div>
+            </div>
+        </div>
+        
+        <div class="input-section">
+            <div class="input-group">
+                <input type="text" id="diagramInput" 
+                       placeholder="Enter your diagram description... (e.g., 'explain the water cycle')"
+                       onkeypress="handleKeyPress(event)">
+                <button id="generateBtn" onclick="generateDiagram()">Generate</button>
+            </div>
+            <div id="errorMessage" class="error"></div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize mermaid
+        mermaid.initialize({ startOnLoad: true });
+
+        // Initial diagram render
+        renderDiagram();
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                generateDiagram();
+            }
+        }
+
+        function showLoading(show) {
+            const loading = document.querySelector('.loading');
+            const output = document.getElementById('diagramOutput');
+            loading.style.display = show ? 'flex' : 'none';
+            output.style.display = show ? 'none' : 'block';
+            document.getElementById('generateBtn').disabled = show;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = message ? 'block' : 'none';
+        }
+
+        function copyCode() {
+            const code = document.getElementById('codePanel').textContent;
+            navigator.clipboard.writeText(code)
+                .then(() => alert('Code copied to clipboard!'))
+                .catch(err => console.error('Failed to copy code:', err));
+        }
+
+        function renderDiagram() {
+            const code = document.getElementById('codePanel').textContent;
+            const outputDiv = document.getElementById('diagramOutput');
+            
+            outputDiv.innerHTML = '';
+            
+            const mermaidDiv = document.createElement('div');
+            mermaidDiv.className = 'mermaid';
+            mermaidDiv.textContent = code;
+            
+            outputDiv.appendChild(mermaidDiv);
+            mermaid.init(undefined, '.mermaid');
+        }
+
+        function downloadDiagram(format) {
+            const svgElement = document.querySelector('.mermaid svg');
+            if (!svgElement) {
+                showError('No diagram to download');
+                return;
+            }
+
+            // Create a clone of the SVG to modify
+            const clonedSvg = svgElement.cloneNode(true);
+            
+            // Set white background
+            clonedSvg.style.backgroundColor = 'white';
+            
+            const serializer = new XMLSerializer();
+            const svgString = serializer.serializeToString(clonedSvg);
+            
+            if (format === 'svg') {
+                // Download as SVG
+                const blob = new Blob([svgString], { type: 'image/svg+xml' });
+                downloadBlob(blob, 'diagram.svg');
+            } else if (format === 'png') {
+                // Convert to PNG and download
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const img = new Image();
+                
+                // Set canvas size to match SVG
+                canvas.width = svgElement.viewBox.baseVal.width || svgElement.width.baseVal.value;
+                canvas.height = svgElement.viewBox.baseVal.height || svgElement.height.baseVal.value;
+                
+                img.onload = function() {
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+                    
+                    canvas.toBlob(function(blob) {
+                        downloadBlob(blob, 'diagram.png');
+                    }, 'image/png');
+                };
+                
+                img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgString)));
+            }
+        }
+
+        function downloadBlob(blob, fileName) {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+
+        async function generateDiagram() {
+            const input = document.getElementById('diagramInput').value;
+            if (!input.trim()) {
+                showError('Please enter a description');
+                return;
+            }
+
+            showError('');
+            showLoading(true);
+
+            try {
+                const response = await fetch('http://localhost:5000/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ input: input })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                document.getElementById('codePanel').textContent = data.code;
+                renderDiagram();
+            } catch (error) {
+                showError(error.message || 'Failed to generate diagram');
+                console.error('Error:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Initial render
+        renderDiagram();
+    </script>
+</body>
+</html>
